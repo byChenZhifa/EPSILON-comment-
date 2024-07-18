@@ -196,57 +196,65 @@ ErrorType Lane::GetArcLengthByVecPosition(const Vecf<LaneDim>& vec_position,
   return kSuccess;
 }
 
+// 这段代码实现了一个基于牛顿法（Newton's method）的算法，
+// 用于通过给定的位置向量和初始猜测值，计算出对应的弧长（arc length）。
+// 算法的基本原理是通过迭代找到一个局部最小值，使得样条曲线上的点与给定位置向量的距离最小。
 ErrorType Lane::GetArcLengthByVecPositionWithInitialGuess(
     const Vecf<LaneDim>& vec_position, const decimal_t& initial_guess,
     decimal_t* arc_length) const {
+  // 检查当前样条是否有效
   if (!IsValid()) {
     return kWrongStatus;
   }
 
+  // 获取样条的参数化域的起始值和结束值
   const decimal_t val_lb = position_spline_.begin();
   const decimal_t val_ub = position_spline_.end();
 
-  // ~ use Newton's method to find the local minimum
-  static constexpr decimal_t epsilon = 1e-3;
-  static constexpr int kMaxIter = 8;
-  decimal_t x = std::min(std::max(initial_guess, val_lb), val_ub);
-  Vecf<LaneDim> p, dp, ddp, tmp_vec;
+  // 使用牛顿法找到局部最小值
+  static constexpr decimal_t epsilon = 1e-3;  // 迭代停止的阈值
+  static constexpr int kMaxIter = 8;  // 最大迭代次数
+  decimal_t x = std::min(std::max(initial_guess, val_lb), val_ub);  // 初始猜测值
+  Vecf<LaneDim> p, dp, ddp, tmp_vec;  // 定义变量用于存储计算结果
 
   for (int i = 0; i < kMaxIter; ++i) {
+    // 评估样条在x处的位置、速度（1阶导数）和加速度（2阶导数）
     position_spline_.evaluate(x, 0, &p);
     position_spline_.evaluate(x, 1, &dp);
     position_spline_.evaluate(x, 2, &ddp);
 
+    // 计算临时向量，表示当前样条点与目标位置向量的差
     tmp_vec = p - vec_position;
-    double f_1 = tmp_vec.dot(dp);
-    double f_2 = dp.dot(dp) + tmp_vec.dot(ddp);
+    // 计算f_1和f_2，分别是函数值和导数值
+    double f_1 = tmp_vec.dot(dp);  // 梯度的点积
+    double f_2 = dp.dot(dp) + tmp_vec.dot(ddp);  // 梯度平方和加速度的点积
+    // 计算牛顿法的步长
     double dx = -f_1 / f_2;
 
+    // 如果步长小于阈值，停止迭代
     if (std::fabs(dx) < epsilon) {
       break;
     }
 
+    // 确保x在参数化域内
     if (x + dx > val_ub) {
       x = val_ub;
-      // printf(
-      //     "[Lane]GetArcLengthByVecPosition - Out of range, use upper
-      //     bound\n");
       break;
     } else if (x + dx < val_lb) {
       x = val_lb;
-      // printf(
-      //     "[Lane]GetArcLengthByVecPosition - Out of range, use lower
-      //     bound\n");
       break;
     }
 
+    // 更新x
     x += dx;
   }
 
+  // 将计算得到的弧长赋值给输出参数
   *arc_length = x;
 
   return kSuccess;
 }
+
 
 // ErrorType Lane::GetArcLengthByVecPosition(const Vecf<LaneDim>& vec_position,
 //                                           decimal_t* arc_length) const {

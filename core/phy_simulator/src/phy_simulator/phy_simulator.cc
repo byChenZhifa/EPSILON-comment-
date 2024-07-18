@@ -69,6 +69,7 @@ bool PhySimulation::UpdateSimulatorUsingSignalSet(
   return true;
 }
 
+// 物理引擎中的车辆模型更新
 bool PhySimulation::UpdateVehicleStates(
     const common::VehicleControlSignalSet &signal_set, const decimal_t &dt) {
   if (signal_set.signal_set.size() != vehicle_set_.vehicles.size()) {
