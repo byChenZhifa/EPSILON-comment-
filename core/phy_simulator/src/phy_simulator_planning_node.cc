@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
       nh.subscribe("/move_base_simple/goal", 10, NavGoalCallback);
 
   ros::Rate rate(simulation_rate);
-  ros::Time next_gt_pub_time = ros::Time::now();
+  ros::Time next_gt_pub_time = ros::Time::now();            00
   ros::Time next_gt_static_pub_time = next_gt_pub_time;
   ros::Time next_vis_pub_time = ros::Time::now();
 

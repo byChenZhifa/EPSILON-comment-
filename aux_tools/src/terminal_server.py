@@ -42,6 +42,7 @@ has_arena_info_dynamic = False
 
 
 def project_world_to_image(point_3dof):
+    """将三自由度的世界坐标转换为图像坐标，用于在屏幕上绘制车辆和其他物体。"""
     x = point_3dof[0] - center_3dof[0]
     y = point_3dof[1] - center_3dof[1]
     angle = center_3dof[2]
@@ -51,6 +52,7 @@ def project_world_to_image(point_3dof):
 
 
 class Wheel(pg.sprite.Sprite):
+    """`Wheel`类和`Vehicle`类：这两个类继承自Pygame的`Sprite`类，用于表示方向盘和车辆的图形对象，并在屏幕上更新它们的位置和旋转角度。"""
     def __init__(self, screen_rect):
         pg.sprite.Sprite.__init__(self)
         self.original_image = pg.image.load(
@@ -73,6 +75,7 @@ class Wheel(pg.sprite.Sprite):
 
 
 class Vehicle(pg.sprite.Sprite):
+    """`Wheel`类和`Vehicle`类：这两个类继承自Pygame的`Sprite`类，用于表示方向盘和车辆的图形对象，并在屏幕上更新它们的位置和旋转角度。"""
     def __init__(self, screen_rect, id, state_3dof):
         pg.sprite.Sprite.__init__(self)
         self.id = id
@@ -167,6 +170,7 @@ def plot_selected_rect_on_screen():
 
 
 def process_arena_info_dynamic(data):
+    """这两个函数处理从ROS接收到的动态和静态场地信息，更新车辆状态和车道点。"""
     for v in data.vehicle_set.vehicles:
         vehicles[v.id.data] = v.state
         if v.id.data not in recorded_ids:
@@ -181,6 +185,7 @@ def process_arena_info_dynamic(data):
 
 
 def process_arena_info_static(data):
+    """这两个函数处理从ROS接收到的动态和静态场地信息，更新车辆状态和车道点。"""
     global lane_pts
     if has_arena_info_dynamic:
         visible_range = 150.0
@@ -200,6 +205,7 @@ def process_arena_info_static(data):
 
 
 def process_control_signal(data):
+    """处理从ROS接收到的控制信号，并将其添加到状态序列中。"""
     global state_seq
     state_seq.append(data.state)
     if len(state_seq) > 10:

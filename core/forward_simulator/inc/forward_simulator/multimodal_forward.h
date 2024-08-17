@@ -17,6 +17,9 @@ class MultiModalForward {
   using State = common::State;
   typedef int AggressivenessLevel;
 
+
+  // 根据传入的侵略性级别，函数会设置OnLaneForwardSimulation::Param结构体中的不同参数，
+  // 这些参数包括IDM模型的期望车头时距、最小间距、加速度、舒适制动减速度，以及转向控制增益。
   static ErrorType ParamLookUp(const AggressivenessLevel& agg_level,
                                OnLaneForwardSimulation::Param* param) {
     switch (agg_level) {

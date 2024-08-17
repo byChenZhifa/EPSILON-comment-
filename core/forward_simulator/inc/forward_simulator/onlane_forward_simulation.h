@@ -15,6 +15,7 @@
 
 namespace planning {
 
+// 车道上的前向仿真器。
 class OnLaneForwardSimulation {
  public:
   using Lane = common::Lane;
@@ -39,6 +40,8 @@ class OnLaneForwardSimulation {
     bool auto_decelerate_if_lat_failed = true;
   };
 
+  // 计算目标车道上的目标状态，这个函数根据当前车辆状态和周围车辆的信息来
+  // 确定车辆应该达到的目标状态。
   static ErrorType GetTargetStateOnTargetLane(
       const common::StateTransformer& stf_target,
       const common::Vehicle& ego_vehicle,
@@ -156,6 +159,8 @@ class OnLaneForwardSimulation {
     return kSuccess;
   }
 
+  // !更新车辆的状态：LK 表示车道保持（Lane Keeping）
+  // 它们分别根据当前的车道信息、前后车辆信息以及车辆的状态，计算下一时刻的车辆状态。
   static ErrorType PropagateOnceAdvancedLK(
       const common::StateTransformer& stf, const common::Vehicle& ego_vehicle,
       const Vehicle& leading_vehicle, const decimal_t& lat_track_offset,
@@ -221,6 +226,9 @@ class OnLaneForwardSimulation {
     return kSuccess;
   }
 
+
+  // !更新车辆的状态：LC 表示车道变换（Lane Change）。
+  // 它们分别根据当前的车道信息、前后车辆信息以及车辆的状态，计算下一时刻的车辆状态。
   static ErrorType PropagateOnceAdvancedLC(
       const common::StateTransformer& stf_current,
       const common::StateTransformer& stf_target,
@@ -315,6 +323,10 @@ class OnLaneForwardSimulation {
     return kSuccess;
   }
 
+
+   
+  // !更新车辆的状态：根据前车信息调整速度
+  // 该方法有两个重载版本，用于推进车辆状态的计算，一个版本使用恒定的速度和转向角，另一个版本则根据前车信息调整速度。
   static ErrorType PropagateOnce(const common::StateTransformer& stf,
                                  const common::Vehicle& ego_vehicle,
                                  const Vehicle& leading_vehicle,
@@ -382,6 +394,8 @@ class OnLaneForwardSimulation {
   }
 
   // ~ Propagate using const velocity and steer
+  // !更新车辆的状态：恒定的速度和转向角
+  // 该方法有两个重载版本，用于推进车辆状态的计算，一个版本使用恒定的速度和转向角，另一个版本则根据前车信息调整速度。
   static ErrorType PropagateOnce(const decimal_t& desired_vel,
                                  const common::Vehicle& ego_vehicle,
                                  const decimal_t& dt, const Param& param,
@@ -396,6 +410,8 @@ class OnLaneForwardSimulation {
   }
 
  private:
+
+  // 计算等效车辆长度、转向角度和速度等。
   static ErrorType GetIdmEquivalentVehicleLength(
       const common::StateTransformer& stf, const common::Vehicle& ego_vehicle,
       const common::Vehicle& leading_vehicle,
@@ -428,6 +444,7 @@ class OnLaneForwardSimulation {
     return kSuccess;
   }
 
+  // 计算等效车辆长度、转向角度和速度等。
   static ErrorType CalcualateSteer(const common::StateTransformer& stf,
                                    const State& current_state,
                                    const FrenetState& current_fs,
@@ -456,6 +473,7 @@ class OnLaneForwardSimulation {
   }
 
   // ~ Using leading vehicle
+  // 计算等效车辆长度、转向角度和速度等。
   static ErrorType CalcualateVelocityUsingIdm(
       const decimal_t& current_pos, const decimal_t& current_vel,
       const decimal_t& leading_pos, const decimal_t& leading_vel,
@@ -474,6 +492,7 @@ class OnLaneForwardSimulation {
   }
 
   // ~ Using virtual leading vehicle
+  // 计算等效车辆长度、转向角度和速度等。
   static ErrorType CalcualateVelocityUsingIdm(const decimal_t& current_vel,
                                               const decimal_t& dt,
                                               const Param& param,
@@ -515,6 +534,7 @@ class OnLaneForwardSimulation {
         target_pos, current_vel, current_vel, target_vel, dt, velocity);
   }
 
+  // 这个方法基于当前状态、转向角、速度等参数，计算出车辆的期望状态。
   static ErrorType CalculateDesiredState(const State& current_state,
                                          const decimal_t steer,
                                          const decimal_t velocity,

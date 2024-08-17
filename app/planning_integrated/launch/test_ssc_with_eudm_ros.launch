@@ -1,9 +1,13 @@
 <launch>
+  <!-- <arg> 标签：用于定义参数，这些参数可以在启动时动态指定，也可以在文件中提供默认值。 -->
+  <!-- 定义静态和动态场地信息的话题名称，默认值分别为/arena_info_static和/arena_info_dynamic。 -->
   <arg name="arena_info_static_topic" value="/arena_info_static" />
   <arg name="arena_info_dynamic_topic" value="/arena_info_dynamic" />
 
+  <!-- 控制信号的话题名称，默认值为/ctrl/agent_0。 -->
   <arg name="ctrl_topic" value="/ctrl/agent_0" />
 
+  <!-- 指定测试环境的配置文件，可以选择不同的场景，例如highway_v1.0， -->
   <arg name="playground" value = "highway_v1.0" />
   <!-- <arg name="playground" value = "ring_tiny_v1.0" /> -->
   <!-- <arg name="playground" value = "ring_small_v1.0" /> -->
@@ -12,12 +16,21 @@
         type="test_ssc_with_eudm"
         name="test_ssc_with_eudm_0"
         output="screen">
+        <!-- output="screen"：将节点的输出信息打印到终端屏幕上。 -->
     <param name="ego_id" type="int" value="0" />
+    <!-- `agent_config_path`**：指定agent配置文件的路径，该路径由`playgrounds`目录下的指定场景（通过`playground`参数）中的`agent_config.json`文件决定。 -->
     <param name="agent_config_path" type="string" value="$(find playgrounds)/$(arg playground)/agent_config.json" />
+    <!-- `bp_config_path`**：行为规划器（Behavior Planner）的配置文件路径，位于`eudm_planner`包的配置文件夹下。 -->
     <param name="bp_config_path" type="string" value="$(find eudm_planner)/config/eudm_config.pb.txt" />
+    <!-- `ssc_config_path`**：时空语义走廊规划器（SSC Planner）的配置文件路径，位于`ssc_planner`包的配置文件夹下。 -->
     <param name="ssc_config_path" type="string" value="$(find ssc_planner)/config/ssc_config.pb.txt" />
     <param name="desired_vel" value="20.0"/>
+    <!-- `use_sim_state`**：指定是否使用模拟状态，设定为`true`。 -->
     <param name="use_sim_state" value="true"/>
+
+
+    <!-- 话题重映射: -->
+    <!-- - **`<remap>` 标签**：将节点内部使用的话题名称重映射到全局的话题名称。   -->
     <remap from="~arena_info_static" to="$(arg arena_info_static_topic)"/>
     <remap from="~arena_info_dynamic" to="$(arg arena_info_dynamic_topic)"/>
     <remap from="~ctrl" to="$(arg ctrl_topic)"/>

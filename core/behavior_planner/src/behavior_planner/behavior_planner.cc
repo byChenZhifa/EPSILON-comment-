@@ -256,36 +256,57 @@ ErrorType BehaviorPlanner::MultiBehaviorJudge(
   return kSuccess;
 }
 
+
+// 
+// ego_semantic_vehicle: 自车的语义车辆信息，包括车辆的状态和参考车道。
+// agent_vehicles: 其他车辆的语义车辆集合，包含场景中所有已知车辆的状态和参考车道。
+// traj: 输出参数，用于存储自车在仿真过程中的轨迹。
+// surround_trajs: 输出参数，用于存储仿真过程中其他车辆的轨迹。
 ErrorType BehaviorPlanner::OpenloopSimForward(
     const common::SemanticVehicle& ego_semantic_vehicle,
     const common::SemanticVehicleSet& agent_vehicles,
     vec_E<common::Vehicle>* traj,
     std::unordered_map<int, vec_E<common::Vehicle>>* surround_trajs) {
+
+// 1）初始化轨迹存储：
+// 清空并初始化 traj，将自车的当前状态作为仿真轨迹的第一个点。
   traj->clear();
   traj->push_back(ego_semantic_vehicle.vehicle);
+// 清空并初始化 surround_trajs，为每个周围车辆创建一个轨迹容器，并将该车辆的当前状态作为仿真轨迹的第一个点。
   surround_trajs->clear();
   for (const auto v : agent_vehicles.semantic_vehicles) {
-    surround_trajs->insert(std::pair<int, vec_E<common::Vehicle>>(
-        v.first, vec_E<common::Vehicle>()));
+    surround_trajs->insert(std::pair<int, vec_E<common::Vehicle>>(v.first, vec_E<common::Vehicle>()));
     surround_trajs->at(v.first).push_back(v.second.vehicle);
   }
 
+
+// 2）确定仿真步数：
+// 计算仿真的步数 num_steps_forward，该值由仿真时间范围（sim_horizon_）除以仿真时间步长（sim_resolution_）决定。
   int num_steps_forward = static_cast<int>(sim_horizon_ / sim_resolution_);
+
+// 3）进行仿真迭代：
   common::Vehicle cur_ego_vehicle = ego_semantic_vehicle.vehicle;
   common::SemanticVehicleSet semantic_vehicle_set_tmp = agent_vehicles;
   common::State ego_state;
   for (int i = 0; i < num_steps_forward; i++) {
+  // 3.1）自车前向模拟：
+    // 设定自车的期望速度为参考期望速度 reference_desired_velocity_。
     sim_param_.idm_param.kDesiredVelocity = reference_desired_velocity_;
+    // 使用 planning::OnLaneForwardSimulation::PropagateOnce 函数模拟自车的下一状态（ego_state）。如果仿真失败，返回错误状态 kWrongStatus。
     if (planning::OnLaneForwardSimulation::PropagateOnce(
             common::StateTransformer(ego_semantic_vehicle.lane),
             cur_ego_vehicle, common::Vehicle(), sim_resolution_, sim_param_,
             &ego_state) != kSuccess) {
       return kWrongStatus;
     }
+
+// 3.2）周围车前向模拟
+    // 创建一个状态缓存 state_cache，用于存储每个周围车辆的下一状态。
     std::unordered_map<int, State> state_cache;
-    for (auto& v : semantic_vehicle_set_tmp.semantic_vehicles) {
-      decimal_t desired_vel =
-          agent_vehicles.semantic_vehicles.at(v.first).vehicle.state().velocity;
+    // 对每个周围车辆，使用相同的仿真函数 PropagateOnce 计算其下一状态，并存储在 state_cache 中。如果仿真失败，返回错误状态 kWrongStatus。
+    for (auto& v : semantic_vehicle_set_tmp.c
+    ) {
+      decimal_t desired_vel = agent_vehicles.semantic_vehicles.at(v.first).vehicle.state().velocity;
       sim_param_.idm_param.kDesiredVelocity = desired_vel;
       common::State agent_state;
       if (planning::OnLaneForwardSimulation::PropagateOnce(
@@ -297,32 +318,48 @@ ErrorType BehaviorPlanner::OpenloopSimForward(
       state_cache.insert(std::make_pair(v.first, agent_state));
     }
 
+
+
+// 3.3）碰撞检测：
+// 在每一步仿真中，检查自车是否与其他车辆发生碰撞。如果检测到碰撞，返回错误状态 kWrongStatus。
     bool is_collision = false;
-    map_itf_->CheckIfCollision(ego_semantic_vehicle.vehicle.param(), ego_state,
-                               &is_collision);
+    map_itf_->CheckIfCollision(ego_semantic_vehicle.vehicle.param(), ego_state,&is_collision);
     if (is_collision) return kWrongStatus;
 
+
+// 3.4)更新状态和轨迹：
+// 更新自车的当前状态并将其追加到 traj 中。
+// 更新每个周围车辆的状态，并将其追加到 surround_trajs 中对应车辆的轨迹中。
     // * update and trace
     cur_ego_vehicle.set_state(ego_state);
     for (auto& s : state_cache) {
-      semantic_vehicle_set_tmp.semantic_vehicles.at(s.first).vehicle.set_state(
-          s.second);
-      surround_trajs->at(s.first).push_back(
-          semantic_vehicle_set_tmp.semantic_vehicles.at(s.first).vehicle);
+      semantic_vehicle_set_tmp.semantic_vehicles.at(s.first).vehicle.set_state(s.second);
+      surround_trajs->at(s.first).push_back(semantic_vehicle_set_tmp.semantic_vehicles.at(s.first).vehicle);
     }
     traj->push_back(cur_ego_vehicle);
   }
   return kSuccess;
 }
 
+// ego_vehicle: 自车的当前状态，包括位置、速度等信息。
+// ego_behavior: 自车的目标横向行为，如变道、保持车道等。
+// semantic_vehicle_set: 当前场景中的语义车辆集合，包含所有已知车辆的状态。
+// traj: 输出参数，用于存储自车在仿真过程中的轨迹。
+// surround_trajs: 输出参数，用于存储仿真过程中其他车辆的轨迹。
 ErrorType BehaviorPlanner::SimulateEgoBehavior(
     const common::Vehicle& ego_vehicle, const LateralBehavior& ego_behavior,
     const common::SemanticVehicleSet& semantic_vehicle_set,
     vec_E<common::Vehicle>* traj,
     std::unordered_map<int, vec_E<common::Vehicle>>* surround_trajs) {
+
+// 1）计算前后车道长度：
+// forward_lane_len：前向车道长度，基于自车速度和一个固定的最小值（50.0）。
+// max_backward_len：后向车道长度，固定为 10.0。
   const decimal_t max_backward_len = 10.0;
-  decimal_t forward_lane_len =
-      std::max(ego_vehicle.state().velocity * 10.0, 50.0);
+  decimal_t forward_lane_len = std::max(ego_vehicle.state().velocity * 10.0, 50.0);
+
+// 2)获取参考车道
+  // 调用 map_itf_->GetRefLaneForStateByBehavior 方法，根据自车的当前状态和目标横向行为获取参考车道。如果获取失败，函数返回 kWrongStatus 并输出错误信息。
   common::Lane ego_reflane;
   if (map_itf_->GetRefLaneForStateByBehavior(
           ego_vehicle.state(), p_route_planner_->navi_path(), ego_behavior,
@@ -332,6 +369,9 @@ ErrorType BehaviorPlanner::SimulateEgoBehavior(
     return kWrongStatus;
   }
 
+
+// 3)创建语义车辆对象：
+// 将自车的车辆状态和参考车道组合成 SemanticVehicle 对象，并插入到 semantic_vehicle_set_tmp 中。这是为了在多智能体仿真中包含自车的状态。
   common::SemanticVehicle ego_semantic_vehicle;
   {
     ego_semantic_vehicle.vehicle = ego_vehicle;
@@ -343,20 +383,22 @@ ErrorType BehaviorPlanner::SimulateEgoBehavior(
       std::make_pair(ego_vehicle.id(), ego_semantic_vehicle));
 
   // ~ multi-agent forward
+  // 4)执行多智能体前向仿真：
+  // 4.1) 调用 MultiAgentSimForward 方法，模拟自车和周围车辆在当前行为下的前向运动。如果仿真成功，输出结果到 traj 和 surround_trajs 中。
   printf("[MPDM]simulating behavior %d.\n", static_cast<int>(ego_behavior));
-  if (MultiAgentSimForward(ego_vehicle.id(), semantic_vehicle_set_tmp, traj,
-                           surround_trajs) != kSuccess) {
-    printf("[MPDM]multi agent forward under %d failed.\n",
-           static_cast<int>(ego_behavior));
-    if (OpenloopSimForward(ego_semantic_vehicle, semantic_vehicle_set, traj,
-                           surround_trajs) != kSuccess) {
-      printf("[MPDM]open loop forward under %d failed.\n",
-             static_cast<int>(ego_behavior));
+  if (MultiAgentSimForward(ego_vehicle.id(), semantic_vehicle_set_tmp, traj,surround_trajs) != kSuccess) {
+    printf("[MPDM]multi agent forward under %d failed.\n",static_cast<int>(ego_behavior));
+
+    // 4.2) 如果多智能体仿真失败，则退回到开环仿真，调用 OpenloopSimForward 方法再次尝试。如果再次失败，则函数返回 kWrongStatus。
+    if (OpenloopSimForward(ego_semantic_vehicle, semantic_vehicle_set, traj,surround_trajs) != kSuccess) {
+      printf("[MPDM]open loop forward under %d failed.\n",static_cast<int>(ego_behavior));
       return kWrongStatus;
     }
   }
-  printf("[MPDM]behavior %d traj num of states: %d.\n",
-         static_cast<int>(ego_behavior), static_cast<int>(traj->size()));
+
+// 5) 输出仿真结果：
+// 如果仿真成功，输出自车在该行为下的轨迹数量，并返回 kSuccess。
+  printf("[MPDM]behavior %d traj num of states: %d.\n",static_cast<int>(ego_behavior), static_cast<int>(traj->size()));
   return kSuccess;
 }
 
